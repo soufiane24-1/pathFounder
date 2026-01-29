@@ -26,3 +26,14 @@ The tool uses **multithreading** for high performance and displays clean, colore
 
 ```bash
 pip install requests rich
+## ⚙️ Installation
+
+### 1️⃣ Clone the repository
+```bash
+git clone https://github.com/soufiane24-1/pathFounder.git
+cd pathFounder
+chmod +x pathFounder
+./pathFounder -u https://example.com -w wordlist.txt
+./pathFounder -u https://example.com -w paths.txt -t 100
+./pathFounder -u https://example.com -w paths.txt --timeout 10
+./pathFounder -u https://example.com -w paths.txt -f 200:15
