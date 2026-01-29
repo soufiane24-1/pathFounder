@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+from rich import print
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+import requests
+import argparse
+import sys
+print(r'''[white]
+             _   _       ___                     _           
+ _ __   __ _| |_| |__   / __\__  _   _ _ __   __| | ___ _ __ 
+| '_ \ / _` | __| '_ \ / _\/ _ \| | | | '_ \ / _` |/ _ \ '__|
+| |_) | (_| | |_| | | / / | (_) | |_| | | | | (_| |  __/ |   
+| .__/ \__,_|\__|_| |_\/   \___/ \__,_|_| |_|\__,_|\___|_|   
+|_|   [blue bold]PathFounder v1.1[/blue bold]   [white bold](https://github.com/soufiane24-1)[/white bold]
+
+[[red bold]![/red bold]] [white bold]For authorized testing only''')
+parser = argparse.ArgumentParser(description='paths scan')
+parser.add_argument('-u','--url',help='target url',type=str)
+parser.add_argument('-w','--wordlist',help='path wordlist',type=str)
+parser.add_argument('-t','--thread',help='threads',type=int)
+parser.add_argument('--timeout',help='timeout',type=int)
+parser.add_argument('-f','--filter',help='request filter',type=str)
+
+args = parser.parse_args()
+if not args.url or not args.wordlist:
+    print('[white bold][Helping] Enter in terminal [./pathFounder --help] or [./pathFounder -h] ')
+    exit()
+    
+print('_'*60,'\n\t\t\t|')
+print(f'  Target Url \t\t|  [white]{args.url}')
+print(f'  Threads\t\t|  [white]{str(args.thread) if args.thread else '50'}')
+print(f'  Wordlist\t\t|  {args.wordlist}')
+print(f'  Status Codes\t\t|  [[green]200[/green], [green]204[/green], [yellow]301[/yellow], [yellow]302[/yellow], [yellow]307[/yellow], [yellow]308[/yellow], [red]401[/red], [red]403[/red] ,[red]405[/red], [red]500[/red]]')
+print(f'  Timeout\t\t|  [white]{str(args.timeout) if args.timeout else '7'}')
+print('  User-Agent\t\t|  [white]pathFounder/1.0')
+print('  HTTP methods\t\t|  [GET]')
+print(f'  Lines Filter\t\t|  {str(args.filter) if args.filter else '[not found]'}\n'+'_'*60)
+print('  [bold]Press [[yellow]Enter[/yellow] + [yellow]C[/yellow]] To Stop\n'+'_'*60)
+session = requests.Session()
+session.headers.update({'User-Agent' :'pathFounder/1.0 (Security Path Scanner; Linux x86_64)'})
+
+def result_c(color,status_c,lines,url):
+    print(f'[{color}]{status_c}[/{color}]\tGET\t[white]{str(lines)}l\t{url}')
+    
+def wordlist_p(path_wordlist):
+    file = Path(path_wordlist)
+    if file.exists() and file.is_file():
+        paths_list = []
+        for path in file.read_text().splitlines():
+            paths_list.append(path.strip())
+        return paths_list
+    else:
+        print('ERROR : wordlist is not found')
+        exit() 
+def scan(path):
+    try:
+        url = f'{args.url.rstrip('/')}/{path.lstrip('/')}'
+        resp0 = session.get(url,timeout=args.timeout if args.timeout else 7)
+        if resp0.status_code in [200,204]:
+            lines = len(resp0.text.splitlines())
+            if args.filter:
+                status_code,line = args.filter.split(':')
+                if int(status_code) in [200,204]:
+                    if resp0.status_code == int(status_code):
+                        if int(line) == lines:
+                            return
+                        else:
+                            result_c('green',resp0.status_code,lines,url)
+            else:
+                result_c('green',resp0.status_code,lines,url)
+        
+        elif resp0.status_code in [301,302,307,308]:
+            lines = len(resp0.text.splitlines())
+            if args.filter:
+                status_code,line = args.filter.split(':')
+                if int(status_code) in [301,302,307,308]:
+                    if resp0.status_code == int(status_code):
+                        if int(line) == lines:
+                            return
+                        else:
+                            result_c('yellow',resp0.status_code,lines,url)
+            else:
+                result_c('yellow',resp0.status_code,lines,url)
+        
+        elif resp0.status_code in [401,403,405,500]:
+            lines = len(resp0.text.splitlines())
+            if args.filter:
+                status_code,line = args.filter.split(':')
+                if int(status_code) in [401,403,405,500]:
+                    if resp0.status_code == int(status_code):
+                        if int(line) == lines:
+                            return
+                        else:
+                            result_c('red',resp0.status_code,lines,url)
+            else:
+                result_c('red',resp0.status_code,lines,url)
+    except requests.exceptions.ConnectionError as conn_er:
+        print(f'Connection Error : {conn_er}')
+    except requests.exceptions.Timeout as time_er:
+        print(f'Timeout Error : {time_er}')    
+    except Exception as msg:
+        print(f'Error {msg}:')
+def thread(fun,path_wordlist):
+    wordlist = wordlist_p(path_wordlist)
+    with ThreadPoolExecutor(max_workers=args.thread if args.thread else 50) as executor:
+        executor.map(fun,wordlist)
+if __name__ == '__main__':
+    try:
+        thread(scan,args.wordlist)
+    except KeyboardInterrupt:
+        sys.exit(0)
